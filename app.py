@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from azure.identity import DefaultAzureCredential
-from azure.ai.openai import OpenAIClient
+from azure.openai import OpenAIClient
 import os
 
 app = Flask(__name__)
