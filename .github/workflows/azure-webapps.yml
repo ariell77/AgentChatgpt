@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies from Azure DevOps feed
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt --extra-index-url https://pkgs.dev.azure.com/azure-public/pypi/_packaging/azure-ai-python/simple/
+          pip install -r requirements.txt
 
 
       - name: Zip app for deployment
