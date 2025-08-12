@@ -1,13 +1,16 @@
+# app.py
 from flask import Flask, request, jsonify
 from azure.identity import DefaultAzureCredential
-from azure.ai.openai import OpenAIClient  # ✅ from the preview package
+from azure.ai.openai import OpenAIClient
 import os
 
 app = Flask(__name__)
 
+# Load Azure OpenAI environment config
 endpoint = os.environ.get("OPENAI_ENDPOINT")
 deployment_name = os.environ.get("DEPLOYMENT_NAME")
 
+# Initialize Azure OpenAI client
 credential = DefaultAzureCredential()
 client = OpenAIClient(endpoint=endpoint, credential=credential)
 
@@ -27,16 +30,16 @@ def agent():
         response = client.chat.completions.create(
             model=deployment_name,
             messages=[
-                {"role": "system", "content": "You are a helpful cloud agent."},
+                {"role": "system", "content": "You are a helpful AI agent."},
                 {"role": "user", "content": instruction}
             ]
         )
 
-        result = response.choices[0].message.content
+        decision = response.choices[0].message.content
 
         return jsonify({
             "instruction": instruction,
-            "agent_decision": result
+            "agent_decision": decision
         })
 
     except Exception as e:
