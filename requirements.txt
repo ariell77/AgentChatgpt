@@ -1,4 +1,4 @@
 flask
 gunicorn
-azure-ai-openai==1.0.0b1
+azure-openai
 azure-identity
