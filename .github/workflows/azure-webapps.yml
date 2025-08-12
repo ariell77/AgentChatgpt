@@ -18,11 +18,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies from Azure DevOps feed
+      - name: Install dependencies (including OpenAI wheel)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt --extra-index-url https://azuremlsdktestpypi.azureedge.net/sdk-preview
-
+          pip install -r requirements.txt
+          pip install https://github.com/Azure/azure-sdk-for-python/releases/download/azure-ai-openai_1.0.0b1/azure_ai_openai-1.0.0b1-py3-none-any.whl
 
       - name: Zip app for deployment
         run: zip -r app.zip .
@@ -30,7 +30,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: agentic-agenthost  # Replace this
+          app-name: agentic-agenthost  # Replace this with your Azure App Service name
           slot-name: production
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: app.zip
