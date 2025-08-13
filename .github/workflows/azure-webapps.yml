@@ -28,5 +28,5 @@ jobs:
         with:
           app-name: agentic-agenthost               # Replace with your actual Azure Web App name
           slot-name: 'production'
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: .
