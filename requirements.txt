@@ -1,5 +1,4 @@
 flask==3.1.1
 gunicorn==23.0.0
 azure-identity==1.15.0
-azure-ai-openai==1.0.0b7
-
+azure-ai-openai==1.0.0b6
