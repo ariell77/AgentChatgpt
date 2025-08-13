@@ -1,4 +1,5 @@
 flask==3.1.1
 gunicorn==23.0.0
 azure-identity==1.15.0
-azure-openai
+git+https://github.com/Azure/azure-sdk-for-python.git@main#egg=azure-ai-openai&subdirectory=sdk/openai/azure-ai-openai
+
