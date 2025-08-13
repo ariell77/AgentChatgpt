@@ -1,4 +1,4 @@
-name: Deploy Flask App to Azure App Service
+name: Deploy to Azure Web App
 
 on:
   push:
@@ -13,23 +13,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Install dependencies (including OpenAI wheel)
-        run: 
-         python -m pip install --upgrade pip
-         pip install --extra-index-url https://azuremlsdktestpypi.azureedge.net/sdk-preview -r requirements.txt
+      - name: Upgrade pip and install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --extra-index-url https://azuremlsdktestpypi.azureedge.net/sdk-preview -r requirements.txt
 
-      - name: Zip app for deployment
+      - name: Archive app
         run: zip -r app.zip .
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: agentic-agenthost  # Replace this with your Azure App Service name
-          slot-name: production
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
-          package: app.zip
+          app-name: YOUR_AZURE_WEBAPP_NAME       # Replace with your App Service name
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./app.zip
