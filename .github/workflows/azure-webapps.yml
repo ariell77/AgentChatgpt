@@ -19,7 +19,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies (including OpenAI wheel)
-        run: pip install -r requirements.txt --extra-index-url https://azuremlsdktestpypi.azureedge.net/sdk-preview
+        run: 
+         python -m pip install --upgrade pip
+         pip install --extra-index-url https://azuremlsdktestpypi.azureedge.net/sdk-preview -r requirements.txt
 
       - name: Zip app for deployment
         run: zip -r app.zip .
