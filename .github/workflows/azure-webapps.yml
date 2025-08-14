@@ -31,7 +31,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: agentic-agenthost
+          app-name: AgenticAI
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: .
           startup-command: ./startup.sh
