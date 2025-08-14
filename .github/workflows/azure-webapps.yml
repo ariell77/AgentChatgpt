@@ -34,4 +34,3 @@ jobs:
           app-name: AgenticAI
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: .
-          startup-command: ./startup.sh
