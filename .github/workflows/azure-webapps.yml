@@ -18,19 +18,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install dependencies (force reinstall)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --no-cache-dir --force-reinstall -r requirements.txt
 
-      - name: Create startup.sh from startup.txt
-        run: |
-          echo "gunicorn app:app" > startup.sh
-          chmod +x startup.sh
-
-      - name: Deploy to Azure Web App
+      - name: Deploy to Azure Web App (publish profile)
         uses: azure/webapps-deploy@v2
         with:
-          app-name: AgenticAI
+          app-name: AgenticAI                       # <-- keep your actual app name
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: .
