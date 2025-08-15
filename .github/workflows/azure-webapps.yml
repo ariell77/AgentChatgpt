@@ -3,7 +3,7 @@ name: Build and Deploy Python app to Azure Web App - AgenticAI
 on:
   push:
     branches:
-      - main  # change if your deployment branch is different this time
+      - main  # change if needed
 
 jobs:
   build-and-deploy:
@@ -13,9 +13,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # Step 1: Wipe Python environment on Azure
+    - name: Wipe Python environment
+      uses: azure/cli@v2
+      with:
+        inlineScript: |
+          az webapp ssh --name AgenticAI --resource-group <RG_NAME> --command "rm -rf /home/site/wwwroot/.python_packages /tmp/* /antenv"
+
+    # Step 2: Deploy using Publish Profile and enable Oryx build
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v3
       with:
-        app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+        app-name: AgenticAI
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: .
         enable-oryx-build: true
