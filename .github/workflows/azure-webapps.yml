@@ -1,4 +1,4 @@
-name: Build and Deploy Python app to Azure Web App - AgenticAI
+name: Build and Deploy AgenticAI
 
 on:
   push:
@@ -13,14 +13,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # Step 1: Wipe Python environment on Azure
-    - name: Wipe Python environment
+    # Step 1: Clear Azure Python environment (no caching issues)
+    - name: Clear Python packages on Azure
       uses: azure/cli@v2
       with:
         inlineScript: |
-          az webapp ssh --name AgenticAI --resource-group <RG_NAME> --command "rm -rf /home/site/wwwroot/.python_packages /tmp/* /antenv"
+          az webapp ssh --name AgenticAI --resource-group <RG_NAME> --command "rm -rf /home/site/wwwroot/.python_packages /antenv"
+      env:
+        AZURE_CREDENTIALS: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
 
-    # Step 2: Deploy using Publish Profile and enable Oryx build
+    # Step 2: Deploy to Azure App Service
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v3
       with:
@@ -28,3 +30,12 @@ jobs:
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: .
         enable-oryx-build: true
+
+    # Step 3: Post-deploy check for correct Azure Identity version
+    - name: Verify Azure Identity installation
+      uses: azure/cli@v2
+      with:
+        inlineScript: |
+          az webapp ssh --name AgenticAI --resource-group <RG_NAME> --command "python3 -c 'import azure.identity; import azure.identity._credentials.app_service as a; import pkg_resources; print(\"Azure Identity version:\", pkg_resources.get_distribution(\"azure-identity\").version); print(\"App Service Credential module found:\", a)'"
+      env:
+        AZURE_CREDENTIALS: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
