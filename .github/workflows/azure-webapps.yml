@@ -3,7 +3,7 @@ name: Build and Deploy Python app to Azure Web App - AgenticAI
 on:
   push:
     branches:
-      - main  # change if your deployment branch is different
+      - main  # change if your deployment branch is different this time
 
 jobs:
   build-and-deploy:
