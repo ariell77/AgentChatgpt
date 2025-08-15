@@ -13,7 +13,6 @@ OPENAI_SECRET_NAME = os.environ.get("OPENAI_SECRET_NAME")
 if not KEYVAULT_NAME or not OPENAI_SECRET_NAME:
     print("⚠ Missing KEYVAULT_NAME or OPENAI_SECRET_NAME in environment variables.")
 
-# HTML template for the chat interface
 CHAT_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -57,23 +56,18 @@ def chat():
     if request.method == "POST":
         question = request.form.get("question")
         if question:
-            # Add user message to history
             session["chat_history"].append(("user", question))
 
             try:
-                # Authenticate with Managed Identity
                 credential = DefaultAzureCredential()
                 kv_uri = f"https://{KEYVAULT_NAME}.vault.azure.net"
                 secret_client = SecretClient(vault_url=kv_uri, credential=credential)
 
-                # Get OpenAI API key from Key Vault
                 retrieved_secret = secret_client.get_secret(OPENAI_SECRET_NAME)
                 openai_api_key = retrieved_secret.value
 
-                # Initialize OpenAI client
                 client = OpenAI(api_key=openai_api_key)
 
-                # Send conversation history to OpenAI
                 messages = [{"role": role, "content": content} for role, content in session["chat_history"]]
                 completion = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -82,13 +76,11 @@ def chat():
                 )
                 answer = completion.choices[0].message.content
 
-                # Add assistant reply to history
                 session["chat_history"].append(("assistant", answer))
 
             except Exception as e:
                 session["chat_history"].append(("assistant", f"Error: {e}"))
 
-            # Save session
             session.modified = True
 
         return redirect(url_for("chat"))
