@@ -1,78 +1,102 @@
 import os
 from flask import Flask, request, render_template_string
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
 from azure.keyvault.secrets import SecretClient
 from openai import OpenAI
-import httpx
 
 app = Flask(__name__)
 
+# Environment variables
 KEYVAULT_NAME = os.environ.get("KEYVAULT_NAME")
 OPENAI_SECRET_NAME = os.environ.get("OPENAI_SECRET_NAME")
+UAMI_CLIENT_ID = os.environ.get("AZURE_CLIENT_ID")  # Only set if using UAMI
 
 if not KEYVAULT_NAME or not OPENAI_SECRET_NAME:
     print("⚠ Missing KEYVAULT_NAME or OPENAI_SECRET_NAME in environment variables.")
 
-# Simple chat UI
+# HTML chat interface
 HTML_PAGE = """
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-    <title>AgenticAI Chat</title>
+    <title>AgenticAI Demo</title>
 </head>
 <body style="font-family: Arial; max-width: 600px; margin: auto;">
-    <h1>AgenticAI Chat</h1>
-    <form action="/chat" method="post">
-        <input type="text" name="question" style="width: 80%;" placeholder="Ask me anything..." required>
-        <button type="submit">Ask</button>
+    <h2>🤖 AgenticAI - LLM + Azure Key Vault</h2>
+    <form method="POST">
+        <input name="question" style="width:80%;" placeholder="Ask me something... (or 'get secret SecretName')" autofocus>
+        <button type="submit">Send</button>
     </form>
-    {% if question %}
-        <h3>Q: {{ question }}</h3>
-        <p><strong>A:</strong> {{ answer }}</p>
+    {% if answer %}
+    <div style="margin-top:20px;">
+        <b>Q:</b> {{ question }}<br>
+        <b>A:</b> {{ answer|safe }}
+    </div>
     {% endif %}
 </body>
 </html>
 """
 
-@app.route("/")
-def home():
-    return render_template_string(HTML_PAGE)
+def get_identity_info():
+    """Return whether using System Managed Identity or UAMI."""
+    if UAMI_CLIENT_ID:
+        return f"User Assigned Managed Identity (Client ID: {UAMI_CLIENT_ID})"
+    else:
+        return "System Assigned Managed Identity"
 
-@app.route("/chat", methods=["POST"])
-def chat():
-    question = request.form.get("question", "")
-
-    try:
-        # Authenticate with Managed Identity each time
+def get_kv_secret(secret_name):
+    """Retrieve a secret from Azure Key Vault."""
+    if UAMI_CLIENT_ID:
+        credential = ManagedIdentityCredential(client_id=UAMI_CLIENT_ID)
+    else:
         credential = DefaultAzureCredential()
-        kv_uri = f"https://{KEYVAULT_NAME}.vault.azure.net"
-        secret_client = SecretClient(vault_url=kv_uri, credential=credential)
 
-        # Get OpenAI API key from Key Vault
-        retrieved_secret = secret_client.get_secret(OPENAI_SECRET_NAME)
-        openai_api_key = retrieved_secret.value
+    kv_uri = f"https://{KEYVAULT_NAME}.vault.azure.net"
+    secret_client = SecretClient(vault_url=kv_uri, credential=credential)
+    retrieved_secret = secret_client.get_secret(secret_name)
+    return retrieved_secret.value
 
-        # Build a clean HTTPX client (no proxies) to avoid Azure proxy injection issue
-        clean_http_client = httpx.Client(proxies=None)
+@app.route("/", methods=["GET", "POST"])
+def chat():
+    answer = None
+    question = None
 
-        # Initialize OpenAI client
-        client = OpenAI(api_key=openai_api_key, http_client=clean_http_client)
+    if request.method == "POST":
+        question = request.form.get("question", "").strip()
 
-        # Send request to OpenAI
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a concise assistant."},
-                {"role": "user", "content": question}
-            ],
-            max_tokens=100
-        )
+        try:
+            identity_info = get_identity_info()
 
-        answer = completion.choices[0].message.content
-        return render_template_string(HTML_PAGE, question=question, answer=answer)
+            if question.lower().startswith("get secret"):
+                # Extract the secret name from input
+                parts = question.split(" ", 2)
+                if len(parts) >= 3:
+                    secret_name = parts[2]
+                    secret_value = get_kv_secret(secret_name)
+                    answer = f"Secret '<b>{secret_name}</b>': {secret_value}<br><i>Accessed via {identity_info}</i>"
+                else:
+                    answer = "Please specify the secret name. Example: get secret MySecret"
+            else:
+                # Get OpenAI API key from Key Vault
+                openai_api_key = get_kv_secret(OPENAI_SECRET_NAME)
 
-    except Exception as e:
-        return render_template_string(HTML_PAGE, question=question, answer=f"Error: {e}")
+                # Ask OpenAI
+                client = OpenAI(api_key=openai_api_key)
+                completion = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a concise assistant."},
+                        {"role": "user", "content": question}
+                    ],
+                    max_tokens=100
+                )
+                llm_answer = completion.choices[0].message.content
+                answer = f"{llm_answer}<br><i>LLM query executed via {identity_info}</i>"
+
+        except Exception as e:
+            answer = f"Error: {e}"
+
+    return render_template_string(HTML_PAGE, answer=answer, question=question)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
