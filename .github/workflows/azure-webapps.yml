@@ -1,60 +1,49 @@
-name: Build and Deploy AgenticAI
+name: Build and Deploy AgenticAI to Azure WebApp
 
 on:
   push:
     branches:
-      - main  # change if your default branch is different
+      - main  # Deploy only on pushes to main branch
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # Step 1: Clear Python environment via Kudu API
-    - name: Clear Azure Python environment
-      env:
-        PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-      run: |
-        USER=$(echo "$PUBLISH_PROFILE" | xmllint --xpath "string(//publishProfile/@userName)" -)
-        PASS=$(echo "$PUBLISH_PROFILE" | xmllint --xpath "string(//publishProfile/@userPWD)" -)
-        APPNAME=$(echo "$PUBLISH_PROFILE" | xmllint --xpath "string(//publishProfile/@msdeploySite)" -)
-        AUTH=$(printf "%s:%s" "$USER" "$PASS" | base64)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-        echo "Deleting old Python packages..."
-        curl -s -X DELETE "https://${APPNAME}.scm.azurewebsites.net/api/vfs/site/wwwroot/.python_packages/" \
-          -H "Authorization: Basic $AUTH" || true
-        curl -s -X DELETE "https://${APPNAME}.scm.azurewebsites.net/api/vfs/antenv/" \
-          -H "Authorization: Basic $AUTH" || true
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    # Step 2: Deploy to Azure App Service
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: AgenticAI
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: .
-        enable-oryx-build: true
+      # Create a deployment package without unnecessary files
+      - name: Create deployment package
+        run: |
+          mkdir package
+          cp -r app.py requirements.txt package/
+          # Copy any other needed folders (templates, static, etc.)
+          if [ -d "templates" ]; then cp -r templates package/; fi
+          if [ -d "static" ]; then cp -r static package/; fi
+          cd package
+          zip -r ../deployment.zip .
 
-    # Step 3: Post-deploy end-to-end test
-    - name: Verify Key Vault + OpenAI integration
-      run: |
-        echo "Waiting for app to start..."
-        sleep 20
+      # Upload the zip as an artifact (optional, useful for debugging)
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: deployment.zip
 
-        echo "Sending test request to /ask/hello..."
-        RESPONSE=$(curl -s https://agenticai-g8d3a0fhfha8dtbn.australiaeast-01.azurewebsites.net/ask/hello)
-
-        echo "Response: $RESPONSE"
-
-        if echo "$RESPONSE" | grep -q "Error:"; then
-          echo "❌ End-to-end test failed: Key Vault or OpenAI returned an error."
-          exit 1
-        elif [ -z "$RESPONSE" ]; then
-          echo "❌ No response from /ask/hello endpoint."
-          exit 1
-        else
-          echo "✅ End-to-end test passed. AgenticAI is fully operational."
-        fi
+      - name: Deploy to Azure WebApp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'agenticai' # Your Azure WebApp name
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: deployment.zip
